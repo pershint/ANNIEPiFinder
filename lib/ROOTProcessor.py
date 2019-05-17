@@ -49,6 +49,16 @@ class ROOTProcessor(object):
             
 
     def _appendProcessedEntry(self, dattype, thistype_processed):
+        '''
+        Appends processed data to the current processed_data dictionary.
+
+        Inputs:
+            dattype [string]
+            key associated with the data location in self.processed_data.
+
+            thistype_processed [array]
+            numpy array of data pulled from a ROOT file using uproot.
+        '''
         if dattype in self.processed_data:
             thistype_proclist = list(thistype_processed)
             self.processed_data[dattype] = self.processed_data[dattype] + \
@@ -61,7 +71,8 @@ class ROOTProcessor(object):
 
     def removeNumpyArrays(self):
         '''
-        returns a version of the processed data where entries are not numpy arrays.
+        returns a version of the processed data where entries are not numpy arrays
+        or of a numpy type.  Useful for saving processed_data into a JSON file.
         '''
         procdata_nonumpy = {}
         for datakey in self.processed_data:
