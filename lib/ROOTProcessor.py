@@ -7,6 +7,11 @@ class ROOTProcessor(object):
         self.treename = treename
         self.processed_data = {}
 
+    def getProcessedData(self):
+        if not self.processed_data:
+            print("processed data array empty.  Did you process any data?")
+        return self.processed_data
+
     def clearProcessedData(self):
         '''
         Empties the current processed_data dictionary.
@@ -60,31 +65,11 @@ class ROOTProcessor(object):
             numpy array of data pulled from a ROOT file using uproot.
         '''
         if dattype in self.processed_data:
-            thistype_proclist = list(thistype_processed)
+            thistype_proclist = thistype_processed.tolist()
             self.processed_data[dattype] = self.processed_data[dattype] + \
                                            thistype_proclist
         else:
             self.processed_data[dattype] = []
-            thistype_proclist = list(thistype_processed)
+            thistype_proclist = thistype_processed.tolist()
             self.processed_data[dattype] = self.processed_data[dattype] + \
                                            thistype_proclist
-
-    def removeNumpyArrays(self):
-        '''
-        returns a version of the processed data where entries are not numpy arrays
-        or of a numpy type.  Useful for saving processed_data into a JSON file.
-        '''
-        procdata_nonumpy = {}
-        for datakey in self.processed_data:
-            if type(self.processed_data[datakey][0]) == np.ndarray:
-                procdata_nonumpy[datakey] = []
-                for entry in self.processed_data[datakey]:
-                    procdata_nonumpy[datakey].append(list(entry))
-            elif type(self.processed_data[datakey][0]) == np.int64 or \
-                 type(self.processed_data[datakey][0]) == np.int32:
-                procdata_nonumpy[datakey] = []
-                for entry in self.processed_data[datakey]:
-                    procdata_nonumpy[datakey].append(int(entry))
-            else:
-                procdata_nonumpy[datakey] = self.processed_data[datakey]
-        return procdata_nonumpy
