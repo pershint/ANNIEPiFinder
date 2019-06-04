@@ -22,7 +22,7 @@ class JSONProcessor(object):
         self.processed_data_header = None
         self.processed_data = None
 
-    def setFilePath(self,filepath):
+    def setOutputPath(self,filepath):
         '''
         Set where to write the processed text file to.
         Input:
@@ -43,7 +43,7 @@ class JSONProcessor(object):
             self.jsondata = json.load(f)
 
     def processData(self,timewindowmin=0.0, timewindowmax=20.0,
-            numwindows=5,numdetectors=150,digittypes="PMT"):
+            numwindows=5,numdetectors=150):
         '''
         This method loops through all events in the jsondata and
         processes PMT/LAPPD hit information for use in a multichannel
@@ -72,24 +72,33 @@ class JSONProcessor(object):
             print("ERROR: choose a max time window that comes after the min time.")
             return
         self._appendHeaderToFile(timewindowmin, timewindowmax,
-                                 numwindows,numdetectors,digittypes)
+                                 numwindows,numdetectors)
         for j,eventhittimes in enumerate(self.jsondata["digitT"]):
-            inwindowindices = np.where(eventhittimes > timewindowmin &&
-                                       eventhittimes < timewindowmax)[0]
-            detector_data = self._getInWindowChannels(j,inwindowindices)
+            print("PROCESSING EVENT %i\n"%(j))
+            eventhittimes = np.array(eventhittimes)
+            inwindowindices = np.where((eventhittimes > timewindowmin) & 
+                                       (eventhittimes < timewindowmax))[0]
+            detector_data = self._getInWindowChannels(j,inwindowindices,numwindows,
+                                                      timewindowmin, timewindowmax)
             all_IDs = np.arange(0,numdetectors,1)
-            inwindow_IDs = self.jsondata["digitDetID"][j]
+            inwindow_IDs = np.array(self.jsondata["digitDetID"][j])[inwindowindices]
             nonwindow_IDs = np.setdiff1d(np.union1d(all_IDs,inwindow_IDs),
                                          np.intersect1d(all_IDs,inwindow_IDs))
+            #Append data for hits that are not in window
             for ID in nonwindow_IDs:
-                emptyhit = np.zeros(0,numwindows+1)
+                emptyhit = np.zeros(numwindows+1)
                 emptyhit[0] = ID
                 detector_data.append(emptyhit)
-            self._appendToFile(j,detector_data)
-        print("PROCESSING OF DATA COMPLETE")
+            #Append number of pions to event data
+            picounts = []
+            picounts.append(self.jsondata["PiMinusCount"][j])
+            picounts.append(self.jsondata["Pi0Count"][j])
+            picounts.append(self.jsondata["PiPlusCount"][j])
+            self._appendEventToFile(j,detector_data,picounts)
+        print("PROCESSING OF DATA COMPLETE; CHECK YOUR FILE")
 
     def _appendHeaderToFile(self, timewindowmin, timewindowmax,
-            numwindows,numdetectors,digittypes):
+            numwindows,numdetectors):
         '''
         Open the filepath that is being processed and append to it the
         specifications used to process data and a key line indicating
@@ -97,20 +106,22 @@ class JSONProcessor(object):
         Inputs:
             see description on self.processData.
         '''
+        tw_width = (timewindowmax - timewindowmin)/float(numwindows)
         with open(self.procfilepath,"a") as f:
-            f.write("timewindowmin, timewindowmax, numwindows, numdetectors, digittypes\n")
-            f.write("%f,%f,%i,%i,%s\n\n"%(timewindowmin,timewindowmax,numwindows,
-                numdetectors,digittypes)
-            f.write("KEY_LINE\n")
+            f.write("timewindowmin, timewindowmax, numwindows, numdetectors\n")
+            f.write("%f,%f,%i,%i\n\n"%(timewindowmin,timewindowmax,numwindows,
+                numdetectors))
+            f.write("INPUT_DATA_KEY_LINE\n")
             f.write("ID")
             thiswinmin = timewindowmin
             for j in xrange(numwindows):
                 thiswinmax = thiswinmin + tw_width
                 f.write(",%f"%(thiswinmax))
+                thiswinmin = thiswinmax
             f.write("\n\n")
 
 
-    def _appendEventToFile(self,eventnum, detector_data):
+    def _appendEventToFile(self,eventnum, detector_data,picounts):
         '''
         Open the filepath that is being processed and append to it with
         the new eventnumber and detector_data.
@@ -123,31 +134,36 @@ class JSONProcessor(object):
             in each hit window.
         '''
         with open(self.procfilepath,"a") as f:
-            f.write("EVENT %i"%(eventnum))
-            for j,hit in detector_data:
-                hitline = str(detector_data[0])
+            f.write("EVENT %i\n"%(eventnum))
+            for hit in detector_data:
+                f.write("%s"%(str(int(hit[0]))))
+                hitline = str(hit)
                 for k in np.arange(1,len(hit),1):
-                    f.write(",%s"%(str(detector_data[k])))
+                    f.write(",%s"%(str(hit[k])))
                 f.write("\n")
+            f.write("PiMinusCount %i\n"%(picounts[0]))
+            f.write("Pi0Count %i\n"%(picounts[1]))
+            f.write("PiPlusCount %i\n"%(picounts[2]))
             f.write("\n")
         
     
     def _getInWindowChannels(self,eventnum,inwindowindices,numwindows,
             timewindowmin, timewindowmax):
         tw_width = (timewindowmax-timewindowmin)/float(numwindows)
-        event_hitIDdata = self.jsondata["digitDetID"][eventnum][inwindowindices]
-        event_hitqdata = self.jsondata["digitQ"][eventnum][inwindowindices]
-        event_hittdata = self.jsondata["digitT"][eventnum][inwindowindices]
+        event_hitIDdata = np.array(self.jsondata["digitDetID"][eventnum])[inwindowindices]
+        event_hitqdata = np.array(self.jsondata["digitQ"][eventnum])[inwindowindices]
+        event_hittdata = np.array(self.jsondata["digitT"][eventnum])[inwindowindices]
         event_data = []
         thiswinmin = timewindowmin
         for j in xrange(numwindows):
             thiswinmax = thiswinmin + tw_width
             for k,ahitID in enumerate(event_hitIDdata):
-                thishit_data = np.zeros(0,numwindows+1)
+                thishit_data = np.zeros(numwindows+1)
                 thishit_data[0] = ahitID
                 if event_hittdata[k] > thiswinmin and event_hittdata[k] < thiswinmax:
-                    thishit_data[k] =event_hitqdata[k]
-                event_data.append(thishit_data)
+                    thishit_data[j+1] =event_hitqdata[k]
+                    event_data.append(thishit_data)
+            thiswinmin = thiswinmax
         return event_data
         
 
