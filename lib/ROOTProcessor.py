@@ -28,7 +28,7 @@ class ROOTProcessor(object):
         '''
         self.treename = treename
 
-    def addROOTFile(self,rootfile,branches_to_get=None):
+    def processROOTFile(self,rootfile,branches_to_get=None):
         '''
         Opens the root ntuple file at the path given and append it's data
         to the current data dictionary.
@@ -41,16 +41,18 @@ class ROOTProcessor(object):
             Array of data variables to load into the dictionary.  Use to
             specify specific data types in ROOT file to collect.
         '''
+        print("PROCESSING ROOTFILE %s INTO JSON"%(rootfile))
         f = uproot.open(rootfile)
         ftree = f.get(self.treename)
         all_data = ftree.keys()
         print(all_data)
-        for dattype in all_data:
+        for akey in all_data:
+            decodedkey = akey.decode('UTF-8')
             if branches_to_get is not None:
-                if dattype not in branches_to_get:
+                if decodedkey not in branches_to_get:
                     continue
-            thistype_processed = ftree.get(dattype).array()
-            self._appendProcessedEntry(dattype,thistype_processed)
+            thistype_processed = ftree.get(decodedkey).array()
+            self._appendProcessedEntry(decodedkey,thistype_processed)
             
 
     def _appendProcessedEntry(self, dattype, thistype_processed):
