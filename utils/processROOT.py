@@ -43,7 +43,7 @@ def process_ROOTFile(infilename,data_branches,output_filenamebase,data_branch="p
     myJSONProcessor.loadJSON(data_injson)
     myJSONProcessor.loadPixelMap(pixel_map,numxpixels,numypixels)
     input_data,output_data = myJSONProcessor.processData(timewindowmin=0, timewindowmax=20,
-                                               numwindows=5, maxevents=10)
+                                               numwindows=5)
     print("TESTING: printing a single event's data out")
     print(input_data[0])
     print("single event's data in the x-pixel row")

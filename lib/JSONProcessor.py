@@ -50,7 +50,7 @@ class JSONProcessor(object):
             self.jsondata = json.load(f)
 
     def processData(self,timewindowmin=0.0, timewindowmax=20.0,
-            numwindows=5,maxevents=100):
+            numwindows=5,maxevents=None):
         '''
         This method loops through all events in the jsondata and
         processes PMT hit information for use in a convolutional neural network.
@@ -78,7 +78,7 @@ class JSONProcessor(object):
 
         #BEGIN EVENT LOOP
         for j,event_hitIDdata in enumerate(self.jsondata["digitDetID"]):
-            if j>maxevents:
+            if maxevents is not None and j>maxevents:
                 break
             print("PROCESSING EVENT %i\n"%(j))
 
@@ -114,11 +114,8 @@ class JSONProcessor(object):
             
             #Form the charge/time window array for this detector
             for k,ID in enumerate(sorted_IDs):
-                print("PROCESSING PMT ID " + str(ID))
                 xpixel = self.idpixmap.loc[self.idpixmap["id"] == ID,"xpixel"].iloc[0]
                 ypixel = self.idpixmap.loc[self.idpixmap["id"] == ID,"ypixel"].iloc[0]
-                print("XPIXEL: %i"%(xpixel))
-                print("YPIXEL: %i"%(ypixel))
                 tw_width = (timewindowmax-timewindowmin)/float(numwindows)
                 thishit_data = np.zeros(numwindows)
                 hit_time = sorted_times[k]
@@ -129,7 +126,6 @@ class JSONProcessor(object):
                     if hit_time > thiswinmin and hit_time < thiswinmax:
                         thishit_data[h] = hit_charge
                     thiswinmin = thiswinmax
-                print("THIS PMT'S HIT DATA: " + str(thishit_data))
                 thisevent_data[xpixel][ypixel] = thishit_data
             
             ## OUTPUT DATA ##
