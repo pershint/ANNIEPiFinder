@@ -15,11 +15,12 @@ import seaborn as sns
 sns.set_context('poster')
 sns.set(font_scale=3.0)
 
-DEBUG = True
+DEBUG = False
 TRAIN_MODEL = False
 SAVE_MODEL = False
 LOAD_MODEL = True
 
+ONEHOT_OUTPUTDATA = True
 NUM_TRAIN_EVENTS = 2000
 NUM_VALIDATE_EVENTS = 500
 
@@ -68,8 +69,8 @@ def open_numpy_allowpickle(thefile):
     return alleventdata 
 
 def ShowMeanMaps(in_data,out_data):
-    nopion_mean = {'xpixel':[], 'ypixel':[], 'channel_avg':[]}
-    pion_mean = {'xpixel':[], 'ypixel':[], 'channel_avg':[]}
+    nopion_mean = {'xpixel':[], 'ypixel':[], 'channel_avg':[], 'channel_stdev':[]}
+    pion_mean = {'xpixel':[], 'ypixel':[], 'channel_avg':[], 'channel_stdev':[]}
      
     nopion_inds = np.where(np.sum(output_data,axis=1) == 0)[0]
     pion_inds = np.where(np.sum(output_data,axis=1) > 0)[0]
@@ -83,13 +84,18 @@ def ShowMeanMaps(in_data,out_data):
             nopion_channel_vals = input_data[nopion_inds,xpixel,ypixel,0:pixel_chans]
             nopion_channel_sums = np.sum(nopion_channel_vals,axis=1)
             nopion_channel_average = np.sum(nopion_channel_sums)/len(nopion_channel_sums)
+            nopion_channel_stdev = np.std(nopion_channel_sums)
             pion_channel_vals = input_data[pion_inds,xpixel,ypixel,0:pixel_chans]
             pion_channel_sums = np.sum(pion_channel_vals,axis=1)
             pion_channel_average = np.sum(pion_channel_sums)/len(pion_channel_sums)
+            pion_channel_stdev = np.std(pion_channel_sums)
             nopion_mean['channel_avg'].append(nopion_channel_average)
             pion_mean['channel_avg'].append(pion_channel_average)
+            nopion_mean['channel_stdev'].append(nopion_channel_stdev)
+            pion_mean['channel_stdev'].append(pion_channel_stdev)
     diff_mean = copy.deepcopy(pion_mean)
     diff_mean["channel_avg"] = np.array(pion_mean["channel_avg"]) - np.array(nopion_mean["channel_avg"])
+    diff_mean["channel_stdev"] = np.sqrt(np.array(pion_mean["channel_stdev"])**2 + np.array(nopion_mean["channel_stdev"])**2)
     nopion_mean = pd.DataFrame(nopion_mean)
     pion_mean = pd.DataFrame(pion_mean)
     diff_mean = pd.DataFrame(diff_mean)
@@ -97,16 +103,81 @@ def ShowMeanMaps(in_data,out_data):
     nopm = nopion_mean.pivot(index='ypixel',columns='xpixel',values='channel_avg')
     pm = pion_mean.pivot(index='ypixel',columns='xpixel',values='channel_avg')
     diffm = diff_mean.pivot(index='ypixel',columns='xpixel',values='channel_avg')
+    nops = nopion_mean.pivot(index='ypixel',columns='xpixel',values='channel_stdev')
+    ps = pion_mean.pivot(index='ypixel',columns='xpixel',values='channel_stdev')
+    diffs = diff_mean.pivot(index='ypixel',columns='xpixel',values='channel_stdev')
     sns.heatmap(nopm)
     plt.title("Average charge distribution of events with no pion (channels summed)")
+    plt.show()
+    sns.heatmap(nops)
+    plt.title("Std. dev. of charge distributions in events with no pion (channels summed)")
     plt.show()
     sns.heatmap(pm)
     plt.title("Average charge distribution of events with a pion (channels summed)")
     plt.show()
+    sns.heatmap(ps)
+    plt.title("Std. dev. of charge distributions in events with a pion (channels summed)")
+    plt.show()
     sns.heatmap(diffm)
     plt.title("Pion - No Pion average charge distribution (channels summed)")
     plt.show()
+    sns.heatmap(diffs)
+    plt.title("Pion - No Pion errors Std. Devs. added in quadrature (channels summed)")
+    plt.show()
 
+def OneHotEncodeBinaryArgs(output_data):
+    '''
+    Takes in an array of outputs and one-hot encodes the
+    output data.  A single output is assumed to be of arbitrary length,
+    but each entry in the output could be either zero or one.  
+
+    Example where an entry in output data has pi0 and/or piminus only:
+
+    0 0             1 0               0 1             1 1
+     |               |                 |               |
+     V               V                 V               V
+    1 0 0 0        0 1 0 0           0 0 1 0         0 0 0 1
+    '''
+    numoutputs = len(output_data[0])
+    num_onehots = (numoutputs)**2
+    onehot_output = []
+    for j,entry in enumerate(output_data): #For each entry, put a 1 in the proper onehot position
+        onehot_ind = None
+        this_onehotoutput = np.zeros(num_onehots)
+        entry = np.array(entry)
+        num_pions = np.sum(entry)
+        if num_pions > numoutputs:
+            print("OH SHOOT, THIS EVENT HAD TWO PIONS OF A SINGLE TYPE")
+            print("TRAIN IT AS IF ONE OF EACH TYPE FOR NOW...")
+            onehot_ind = num_onehots - 1
+        elif num_pions == 0:
+           onehot_ind = 0 
+        elif num_pions == numoutputs:
+            onehot_ind = num_onehots-1
+        else:  #Only one pion was produced of some type, and we must identify which
+            onehot_mask = np.zeros(numoutputs)
+            onehot_ind = 1
+            onehot_mask[0] = 1
+            num_rolls = 0
+            have_match = False
+            while not have_match:
+                if np.sum(onehot_mask*entry)== np.sum(entry):
+                    have_match = True
+                elif num_rolls == numoutputs - 1:
+                    onehot_ind +=1
+                    onehot_mask[0] = 1
+                    num_rolls = 0
+                else:
+                    onehot_ind +=1
+                    onehot_mask = np.roll(onehot_mask,1)
+                    num_rolls+=1
+        this_onehotoutput[onehot_ind] = 1
+        onehot_output.append(this_onehotoutput)
+    return np.array(onehot_output)
+
+
+
+            
 
 if __name__=='__main__':
     input_data = open_numpy_allowpickle(numpy_infilename)
@@ -142,6 +213,13 @@ if __name__=='__main__':
         print("TOTAL PI COUNTS IN DATASET [total_pi0, total_pi-]:")
         print(np.sum(output_data,axis=0))
 
+    if ONEHOT_OUTPUTDATA:
+        print("### OUTPUT DATA BEING CONVERTED TO ONE-HOT ENCODING ###")
+        output_bin = OneHotEncodeBinaryArgs(output_data)
+        print("COMPARISON OF OUTPUT DEFAULT TO ONEHOT:")
+        print(output_data[41:80])
+        print(output_bin[41:78])
+        output_data = output_bin
 
     x_pixel_width = len(input_data[0])
     y_pixel_width = len(input_data[0][0])
@@ -193,10 +271,10 @@ if __name__=='__main__':
     #pidiffs = {"piplus_diff": diffs[0:len(diffs),0], "pi0_diff": diffs[0:len(diffs),1],
     #        "piminus_diff": diffs[0:len(diffs),2], "piplus_truth": truths[0:len(truths),0],
     #        "pi0_truth": truths[0:len(truths),1],"piminus_truth": truths[0:len(truths),2]}
-    pidiffs = {"pi0_diff": diffs[0:len(diffs),0],"piminus_diff": diffs[0:len(diffs),1], 
-            "pi0_truth": truths[0:len(truths),0],"piminus_truth": truths[0:len(truths),1],
-            "pi0_predict": predictions[0:len(predictions),0],
-            "piminus_predict": predictions[0:len(predictions),1]}
+    pidiffs = {"pi0_diff": diffs[0:len(diffs),1],"piminus_diff": diffs[0:len(diffs),2], 
+            "pi0_truth": truths[0:len(truths),1],"piminus_truth": truths[0:len(truths),2],
+            "pi0_predict": predictions[0:len(predictions),1],
+            "piminus_predict": predictions[0:len(predictions),2]}
     pidiffs = pd.DataFrame(pidiffs)
 
    
