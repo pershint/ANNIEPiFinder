@@ -1,4 +1,5 @@
 import sys
+import copy
 import json
 import pandas as pd
 import numpy as np
@@ -66,6 +67,47 @@ def open_numpy_allowpickle(thefile):
     np.load = np_load_old
     return alleventdata 
 
+def ShowMeanMaps(in_data,out_data):
+    nopion_mean = {'xpixel':[], 'ypixel':[], 'channel_avg':[]}
+    pion_mean = {'xpixel':[], 'ypixel':[], 'channel_avg':[]}
+     
+    nopion_inds = np.where(np.sum(output_data,axis=1) == 0)[0]
+    pion_inds = np.where(np.sum(output_data,axis=1) > 0)[0]
+    for xpixel in range(len(in_data[0])):
+        for ypixel in range(len(in_data[0][xpixel])):
+            pixel_chans = len(in_data[0][xpixel][ypixel])
+            nopion_mean['xpixel'].append(xpixel)
+            nopion_mean['ypixel'].append(ypixel)
+            pion_mean['xpixel'].append(xpixel)
+            pion_mean['ypixel'].append(ypixel)
+            nopion_channel_vals = input_data[nopion_inds,xpixel,ypixel,0:pixel_chans]
+            nopion_channel_sums = np.sum(nopion_channel_vals,axis=1)
+            nopion_channel_average = np.sum(nopion_channel_sums)/len(nopion_channel_sums)
+            pion_channel_vals = input_data[pion_inds,xpixel,ypixel,0:pixel_chans]
+            pion_channel_sums = np.sum(pion_channel_vals,axis=1)
+            pion_channel_average = np.sum(pion_channel_sums)/len(pion_channel_sums)
+            nopion_mean['channel_avg'].append(nopion_channel_average)
+            pion_mean['channel_avg'].append(pion_channel_average)
+    diff_mean = copy.deepcopy(pion_mean)
+    diff_mean["channel_avg"] = np.array(pion_mean["channel_avg"]) - np.array(nopion_mean["channel_avg"])
+    nopion_mean = pd.DataFrame(nopion_mean)
+    pion_mean = pd.DataFrame(pion_mean)
+    diff_mean = pd.DataFrame(diff_mean)
+    
+    nopm = nopion_mean.pivot(index='ypixel',columns='xpixel',values='channel_avg')
+    pm = pion_mean.pivot(index='ypixel',columns='xpixel',values='channel_avg')
+    diffm = diff_mean.pivot(index='ypixel',columns='xpixel',values='channel_avg')
+    sns.heatmap(nopm)
+    plt.title("Average charge distribution of events with no pion (channels summed)")
+    plt.show()
+    sns.heatmap(pm)
+    plt.title("Average charge distribution of events with a pion (channels summed)")
+    plt.show()
+    sns.heatmap(diffm)
+    plt.title("Pion - No Pion average charge distribution (channels summed)")
+    plt.show()
+
+
 if __name__=='__main__':
     input_data = open_numpy_allowpickle(numpy_infilename)
     output_data = open_numpy_allowpickle(numpy_outfilename)
@@ -81,6 +123,19 @@ if __name__=='__main__':
         print(input_data[0][3][3])
         print("single event's outputs (piminuscount, pi0count, pipluscount)")
         print(output_data[0])
+        #Let's make the first event's pixel map, summed over all the channels
+        single_event = {'xpixel':[], 'ypixel':[], 'channel_sum':[]}
+        for xpixel,val in enumerate(input_data[0]):
+            for ypixel,pixel_chans in enumerate(val):
+                single_event['xpixel'].append(xpixel)
+                single_event['ypixel'].append(ypixel)
+                single_event['channel_sum'].append(np.sum(val[ypixel]))
+        single_event = pd.DataFrame(single_event)
+        se = single_event.pivot(index='ypixel',columns='xpixel',values='channel_sum')
+        sns.heatmap(se)
+        plt.title("Example event (channels summed)")
+        plt.show()
+        ShowMeanMaps(input_data,output_data)
         print("SOME TOTAL DATASET DIAGNOSTICS:")
         print("TOTAL LENGTH OF DATASET:")
         print(len(output_data))
