@@ -12,10 +12,12 @@ import numpy as np
 ########################################################################
 
 
-MYBRANCHES = ['digitX','digitY','digitZ','digitT','digitQ','Pi0Count','PiPlusCount','PiMinusCount','digitDetID','digitType']
+MYBRANCHES = ['digitX','digitY','digitZ','digitT','digitQ','Pi0Count','PiPlusCount',
+        'PiMinusCount','digitDetID','digitType','trueVtxX','trueVtxY',
+        'trueVtxZ','trueDirX','trueDirY','trueDirZ','trueVtxTime']
 SAVE_JSON=False
 INPUTFILE = "./data/ROOT_Data/LiliaComb_05072019.root"
-OUTBASE = "./data/LiliaComb_05072019_pixelmap"
+OUTBASE = "./data/LiliaComb_05072019_pixelmap_wMuTruth"
 SAVE_NUMPYBIN=True
 
 def process_ROOTFile(infilename,data_branches,output_filenamebase,data_branch="phaseII",save_json=False, save_numpy=True):
@@ -42,8 +44,12 @@ def process_ROOTFile(infilename,data_branches,output_filenamebase,data_branch="p
     myJSONProcessor = jp.JSONProcessor()
     myJSONProcessor.loadJSON(data_injson)
     myJSONProcessor.loadPixelMap(pixel_map,numxpixels,numypixels)
+    OUTINDS= ['PiPlusCount','Pi0Count',
+        'PiMinusCount','trueVtxX','trueVtxY',
+        'trueVtxZ','trueDirX','trueDirY','trueDirZ','trueVtxTime']
+
     input_data,output_data = myJSONProcessor.processData(timewindowmin=0, timewindowmax=20,
-                                               numwindows=5)
+                                               numwindows=5,outdata=OUTINDS)
     print("TESTING: printing a single event's data out")
     print(input_data[0])
     print("single event's data in the x-pixel row")

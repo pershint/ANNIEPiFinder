@@ -50,7 +50,8 @@ class JSONProcessor(object):
             self.jsondata = json.load(f)
 
     def processData(self,timewindowmin=0.0, timewindowmax=20.0,
-            numwindows=5,maxevents=None):
+            numwindows=5,maxevents=None,outdata=["PiPlusCount",
+            "Pi0Count","PiMinusCount"]):
         '''
         This method loops through all events in the jsondata and
         processes PMT hit information for use in a convolutional neural network.
@@ -130,9 +131,8 @@ class JSONProcessor(object):
             
             ## OUTPUT DATA ##
             picounts = []
-            picounts.append(self.jsondata["PiMinusCount"][j])
-            picounts.append(self.jsondata["Pi0Count"][j])
-            picounts.append(self.jsondata["PiPlusCount"][j])
+            for indices in outdata:
+                picounts.append(self.jsondata[indices][j])
 
             #Append this event's input/output data to the final arrays
             input_data.append(np.array(thisevent_data))
