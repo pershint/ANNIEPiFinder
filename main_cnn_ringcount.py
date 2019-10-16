@@ -20,19 +20,19 @@ sns.set(font_scale=3.0)
 
 DEBUG = False
 TRAIN_MODEL = False
-SAVE_MODEL = False 
+SAVE_MODEL = False
 LOAD_MODEL = True
 
 ONEHOT_OUTPUTDATA = False
 NUM_TRAIN_EVENTS = 2000
 NUM_VALIDATE_EVENTS = 500
 
-numpy_infilename = "./data/LiliaComb_05072019_pixelmap_wMuTruth_input.npy"
-numpy_outfilename = "./data/LiliaComb_05072019_pixelmap_wMuTruth_output.npy"
-weights_filename = "./model_out/mufitter_weights_0.h5"
-model_filename = "./model_out/mufitter_model_0.json"
+numpy_infilename = "./data/LiliaComb_05072019_pixelmap_input.npy"
+numpy_outfilename = "./data/LiliaComb_05072019_pixelmap_output.npy"
+weights_filename = "./model_out/ringfinder_weights_0.h5"
+model_filename = "./model_out/ringfinder_model_0.json"
 
-def define_model_struct(data_in,output_width):
+def define_model_struct(data_in):
     print("#### TRAINING MODEL WITH INPUT DATA ####")
     
     xp = Conv2D(32,3)(data_in)
@@ -121,38 +121,21 @@ def OneHotEncodeBinaryArgs(output_data):
         onehot_output.append(this_onehotoutput)
     return np.array(onehot_output)
 
-def ReverseProcessOutputs(output_data):
-    positions = output_data[:,0:3]
-    directions = output_data[:,3:6]
-    #time = output_data[:,6:7]
-    positions = (positions*100)-100.
-    directions = (2*directions) - 1.
-    #time = time - 0.5
-    procd_output = np.append(positions,directions,axis=1)
-    return procd_output
 
-def ProcessOutputs(output_data):
-    '''Assumes seven inputs in the following order: trueVtxX,
-    trueVtxY, trueVtxZ, trueDirX, trueDirY, trueDirZ, trueVtxTime.
-    Transforms variables to reside basically between zero and one.'''
-    positions = output_data[:,0:3]
-    directions = output_data[:,3:6]
-    #time = output_data[:,6:7]
-    positions = (positions+100.)/100.
-    directions = (directions+1.)/2.
-    #time = time + 0.5
-    procd_output = np.append(positions,directions,axis=1)
-    #procd_output = np.append(procd_output,time,axis=1)
-    return procd_output
+
             
 
 if __name__=='__main__':
     input_data = open_numpy_allowpickle(numpy_infilename)
     output_data = open_numpy_allowpickle(numpy_outfilename)
 
-    print("#### IGNORING PI+ FOR NOW... THERE WAS 1 in 4000 MC EVENTS ####")
-    output_data = output_data[0:len(output_data),3:9]
-    output_data = ProcessOutputs(output_data)
+    output_data = np.sum(output_data, axis=1)
+    print("OUTPUT DATA: " + str(output_data))
+    #Now, just set any entries with more than one pion as a one
+    possible_multiring_ind = np.where(output_data > 0)[0]
+    print("INDICES FOR EVENTS WITH POSSIBLE MULTIRING: " + str(possible_multiring_ind))
+    output_data[possible_multiring_ind] = 1
+
     if DEBUG:
         print("TESTING: printing a single event's data out")
         print(input_data[0])
@@ -161,7 +144,7 @@ if __name__=='__main__':
         print("single event's x-pixel = 3, y-pixel = 3 row info")
         print(input_data[0][3][3])
         print("single event's outputs (piminuscount, pi0count, pipluscount)")
-        print(output_data[0:5])
+        print(output_data[0])
         #Let's make the first event's pixel map, summed over all the channels
         p.ShowChargeDistributions(input_data,output_data)
         p.ShowSingleEvent(input_data,0)
@@ -169,8 +152,8 @@ if __name__=='__main__':
         print("SOME TOTAL DATASET DIAGNOSTICS:")
         print("TOTAL LENGTH OF DATASET:")
         print(len(output_data))
-        print("TOTAL PI COUNTS IN DATASET [total_pi0, total_pi-]:")
-        print(np.sum(output_data,axis=0))
+        print("EXAMPLE OUTPUTS OF HAS PION OR DOESNT HAVE PION")
+        print(output_data[0:10])
 
     if ONEHOT_OUTPUTDATA:
         print("### OUTPUT DATA BEING CONVERTED TO ONE-HOT ENCODING ###")
@@ -183,29 +166,22 @@ if __name__=='__main__':
     x_pixel_width = len(input_data[0])
     y_pixel_width = len(input_data[0][0])
     timewindow_width = len(input_data[0][0][0])
-    print("TIME WINDOW WIDTH: " + str(timewindow_width))
 
     print("#### SPLITTING INPUT DATA INTO TRAIN, VALIDATE, AND TEST FRACTIONS ####")
     x_train = input_data[0:NUM_TRAIN_EVENTS-1]
     x_val = input_data[NUM_TRAIN_EVENTS:(NUM_TRAIN_EVENTS+NUM_VALIDATE_EVENTS-1)]
     x_test = input_data[NUM_TRAIN_EVENTS+NUM_VALIDATE_EVENTS:]
 
-    #FIXME: want to add 100 to x,z and then divide by 200.  For y, add by 145 and divide by 3.
-    #Then, add 0.5 to all the trueVtxTimes, which are at zero.
-    #This scales the positions between zero and 1 comfortably
-    print("FIVE OUTPUT_DATA_ENTRY: " + str(output_data[3000:3005]))
-    y_test = copy.deepcopy(output_data[NUM_TRAIN_EVENTS+NUM_VALIDATE_EVENTS:len(output_data)])
-    y_train = copy.deepcopy(output_data[0:NUM_TRAIN_EVENTS-1])
-    y_val = copy.deepcopy(output_data[NUM_TRAIN_EVENTS:(NUM_TRAIN_EVENTS+NUM_VALIDATE_EVENTS-1)])
-    y_test = copy.deepcopy(output_data[NUM_TRAIN_EVENTS+NUM_VALIDATE_EVENTS:len(output_data)])
-    print("LEN(YTEST): " + str(y_test[0]))
+    y_train = output_data[0:NUM_TRAIN_EVENTS-1]
+    y_val = output_data[NUM_TRAIN_EVENTS:(NUM_TRAIN_EVENTS+NUM_VALIDATE_EVENTS-1)]
+    y_test = output_data[NUM_TRAIN_EVENTS+NUM_VALIDATE_EVENTS:]
 
-    output_width = len(output_data[0])
-    print("OUTPUT EXAMPLE: " + str(output_data[0]))
+    output_width = 1
+
     model = None
     if TRAIN_MODEL:
         data_in = tensorflow.keras.layers.Input(shape=(x_pixel_width,y_pixel_width,timewindow_width))
-        model = define_model_struct(data_in,output_width)
+        model = define_model_struct(data_in)
     if LOAD_MODEL:
         print("#### LOADING MODEL THAT HAS PREVIOUSLY BEEN TRAINED ######")
         modelfile = open(model_filename,"r")
@@ -232,11 +208,12 @@ if __name__=='__main__':
     print("#### BEGIN PLOTTING OF SOME VALIDATION CROSS-CHECKS ####")
     #First, let's build histograms of the predictions on test data
     predictions = model.predict(x_test)
-    predictions = ReverseProcessOutputs(predictions)
-    truths = ReverseProcessOutputs(y_test)
+    predictions = np.sum(predictions,axis=1)
+    print("PREDICTIONS GIVEN TEST DATA: " + str(predictions))
+    truths = y_test
 
     #Show Validation plots
-    p.ShowRecoValidationPlots(predictions,truths)
+    p.ShowRingValidationPlots(predictions,truths)
 
     #Print the first 5 predictions and tests
     print(model.predict(x_test[:5]),y_test[:5])

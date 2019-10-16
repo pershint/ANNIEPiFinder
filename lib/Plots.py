@@ -14,8 +14,15 @@ def ShowChargeDistributions(in_data,out_data):
     num_xpixels = len(in_data[0])
     num_ypixels = len(in_data[0][0])
     num_time_chans = len(in_data[0][0][0])
-    nopion_inds = np.where(np.sum(out_data,axis=1) == 0)[0]
-    pion_inds = np.where(np.sum(out_data,axis=1) > 0)[0]
+    nopion_inds = None
+    pion_inds = None
+    if type(out_data[0]) == np.ndarray:
+        if len(out_data[0]) > 0:
+            nopion_inds = np.where(np.sum(out_data,axis=1) == 0)[0]
+            pion_inds = np.where(np.sum(out_data,axis=1) > 0)[0]
+    else:
+        nopion_inds = np.where(out_data == 0)[0]
+        pion_inds = np.where(out_data > 0)[0]
     nopion_channel_vals = in_data[nopion_inds,0:num_xpixels,0:num_ypixels,0:num_time_chans]
     print("BEFORE SUM")
     print(nopion_channel_vals)
@@ -72,8 +79,15 @@ def ShowMeanMaps(in_data,out_data):
     nopion_mean = {'xpixel':[], 'ypixel':[], 'channel_avg':[], 'channel_stdev':[]}
     pion_mean = {'xpixel':[], 'ypixel':[], 'channel_avg':[], 'channel_stdev':[]}
      
-    nopion_inds = np.where(np.sum(out_data,axis=1) == 0)[0]
-    pion_inds = np.where(np.sum(out_data,axis=1) > 0)[0]
+    nopion_inds = None
+    pion_inds = None
+    if type(out_data[0]) == np.ndarray:
+        if len(out_data[0]) > 0:
+            nopion_inds = np.where(np.sum(out_data,axis=1) == 0)[0]
+            pion_inds = np.where(np.sum(out_data,axis=1) > 0)[0]
+    else:
+        nopion_inds = np.where(out_data == 0)[0]
+        pion_inds = np.where(out_data > 0)[0]
     for xpixel in range(len(in_data[0])):
         for ypixel in range(len(in_data[0][xpixel])):
             pixel_chans = len(in_data[0][xpixel][ypixel])
@@ -217,8 +231,8 @@ def ShowRecoValidationPlots(predictions,truths):
     thediffs = {"posX": diffs[0:len(diffs),0],"posY": diffs[0:len(diffs),1], 
             "posZ": diffs[0:len(diffs),2],"dirX": diffs[0:len(diffs),3],
             "dirY": diffs[0:len(diffs),4],
-            "dirZ": diffs[0:len(diffs),5],
-            "time": diffs[0:len(diffs),6]}
+            "dirZ": diffs[0:len(diffs),5]}
+            #"time": diffs[0:len(diffs),6]}
     thediffs = pd.DataFrame(thediffs)
     plt.hist(thediffs["posX"],bins=30,color='red',alpha=0.8)
     plt.title("Prediction-Truth for muon X position in detector (m)")
@@ -230,15 +244,67 @@ def ShowRecoValidationPlots(predictions,truths):
     plt.title("Prediction-Truth for muon Z position in detector (m)")
     plt.show()
     plt.hist(thediffs["dirX"],bins=30,color='blue',alpha=0.8)
-    plt.title("Pblueiction-Truth for muon X dirition in detector (m)")
+    plt.title("Prediction-Truth for muon direction's X-component in detector")
     plt.show()
     plt.hist(thediffs["dirY"],bins=30,color='blue',alpha=0.8)
-    plt.title("Pblueiction-Truth for muon Y dirition in detector (m)")
+    plt.title("Prediction-Truth for muon direction's Y-component in detector")
     plt.show()
     plt.hist(thediffs["dirZ"],bins=30,color='blue',alpha=0.8)
-    plt.title("Pblueiction-Truth for muon Z dirition in detector (m)")
+    plt.title("Prediction-Truth for muon directions' Z-component in detector")
     plt.show()
-    plt.hist(thediffs["time"],bins=30,color='green',alpha=0.8)
-    plt.title("Pblueiction-Truth for muon vertex time in detector (ns)")
-    plt.show()
+    #plt.hist(thediffs["time"],bins=30,color='green',alpha=0.8)
+    #plt.title("Pblueiction-Truth for muon vertex time in detector (ns)")
+    #plt.show()
    
+
+def ShowRingValidationPlots(predictions,truths):
+    diffs = predictions-truths
+    #pidiffs = {"piplus_diff": diffs[0:len(diffs),0], "pi0_diff": diffs[0:len(diffs),1],
+    #        "piminus_diff": diffs[0:len(diffs),2], "piplus_truth": truths[0:len(truths),0],
+    #        "pi0_truth": truths[0:len(truths),1],"piminus_truth": truths[0:len(truths),2]}
+    print(diffs)
+    ringdiffs = {"ring_diff": diffs,"ring_truth": truths, 
+            "ring_predict": predictions}
+    ringdiffs = pd.DataFrame(ringdiffs)
+
+   
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
+    plt.hist(ringdiffs["ring_truth"],  bins=50,
+            linewidth=4, label='Truth', histtype="step", color='red')
+    plt.hist(ringdiffs["ring_predict"], bins=50,
+            linewidth=4, label='Prediction', histtype="step", color='blue')
+    leg = ax.legend(loc=4,fontsize=24)
+    leg.set_frame_on(True)
+    leg.draw_frame(True)
+    plt.title("Truth vs. Prediction of Single Ring (0) vs. Multi Ring (1) ")
+    plt.xlabel("Single ring classifier (0=single ring, 1= multi-ring)")
+    plt.show()
+
+    #Let's first get indices of entries with pions
+    has_pion_inds = np.where(ringdiffs["ring_truth"]>0)[0]
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
+    plt.hist(ringdiffs["ring_diff"][has_pion_inds],  bins=50,
+            linewidth=4, label='Prediction-Truth', histtype="step", color='green')
+    leg = ax.legend(loc=4,fontsize=24)
+    leg.set_frame_on(True)
+    leg.draw_frame(True)
+    plt.title("Prediction-Truth of Single Ring (0) vs. Multi Ring (1) for events with pions")
+    plt.show()
+
+    #Let's first get indices of entries with pions
+    nopion_inds = np.where(ringdiffs["ring_truth"]==0)[0]
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
+    plt.hist(ringdiffs["ring_diff"][nopion_inds],  bins=50,
+            linewidth=4, label='Prediction-Truth', histtype="step", color='green')
+    leg = ax.legend(loc=4,fontsize=24)
+    leg.set_frame_on(True)
+    leg.draw_frame(True)
+    plt.title("Prediction-Truth of Single Ring (0) vs. Multi Ring (1) for events without pions")
+    plt.show()
+
+
