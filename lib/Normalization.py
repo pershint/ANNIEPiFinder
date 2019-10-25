@@ -1,7 +1,7 @@
 import numpy as np
 
-def ReverseRegularizePosDir(output_data):
-    '''Reverses regularization of position and direction information'''
+def ReverseNormalizePosDir(output_data):
+    '''Reverses normalization of position and direction information'''
     positions = output_data[:,0:3]
     directions = output_data[:,3:6]
     #time = output_data[:,6:7]
@@ -11,7 +11,7 @@ def ReverseRegularizePosDir(output_data):
     procd_output = np.append(positions,directions,axis=1)
     return procd_output
 
-def RegularizePosDir(output_data):
+def NormalizePosDir(output_data):
     '''Assumes seven inputs in the following order: trueVtxX,
     trueVtxY, trueVtxZ, trueDirX, trueDirY, trueDirZ, trueVtxTime.
     Transforms variables to reside basically between zero and one.'''

@@ -1,3 +1,5 @@
+import sys
+sys.path.append("..")
 import lib.ROOTProcessor as rp
 import lib.JSONProcessor as jp
 import lib.PixelMapper as pm
@@ -14,10 +16,11 @@ import numpy as np
 
 MYBRANCHES = ['digitX','digitY','digitZ','digitT','digitQ','Pi0Count','PiPlusCount',
         'PiMinusCount','digitDetID','digitType','trueVtxX','trueVtxY',
-        'trueVtxZ','trueDirX','trueDirY','trueDirZ','trueVtxTime']
-SAVE_JSON=False
-INPUTFILE = "./data/ROOT_Data/LiliaComb_05072019.root"
-OUTBASE = "./data/LiliaComb_05072019_pixelmap_wMuTruth"
+        'trueVtxZ','trueDirX','trueDirY','trueDirZ','trueVtxTime','trueTrackLengthInWater',
+        'trueMuonEnergy']
+SAVE_JSON=True
+INPUTFILE = "../data/Raw/ROOT_Data/PMTVolumeReco_Full_06262019.root"
+OUTBASE = "PMTVolume_06262019_pixelmap"
 SAVE_NUMPYBIN=True
 
 def process_ROOTFile(infilename,data_branches,output_filenamebase,data_branch="phaseII",save_json=False, save_numpy=True):
@@ -27,7 +30,7 @@ def process_ROOTFile(infilename,data_branches,output_filenamebase,data_branch="p
     myROOTProcessor.processROOTFile(infilename,branches_to_get=data_branches)
     data_injson = myROOTProcessor.getProcessedData()
     if SAVE_JSON:
-        with open(output_filenamebase+".json","w") as f:
+        with open("../data/Processed/JSON_Data/"+output_filenamebase+".json","w") as f:
             #procd_data_lists = myProcessor.removeNumpyArrays()
             #json.dump(procd_data_lists,f)
             json.dump(data_injson,f)
@@ -57,8 +60,8 @@ def process_ROOTFile(infilename,data_branches,output_filenamebase,data_branch="p
     print("single event's charge data at x-pixel=0, y-pixel=3")
     print(input_data[0][0][3])
     if SAVE_NUMPYBIN:
-        np.save(output_filenamebase+"_input.npy",input_data)
-        np.save(output_filenamebase+"_output.npy",output_data)
+        np.save("../data/Processed/nparray_Data/"+output_filenamebase+"_input.npy",input_data)
+        np.save("../data/Processed/nparray_Data/"+output_filenamebase+"_output.npy",output_data)
 
 
 if __name__=='__main__':

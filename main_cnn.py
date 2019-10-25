@@ -11,18 +11,18 @@ from tensorflow.keras.models import model_from_json
 import lib.Plots.CNNPlots as clp
 import lib.NNArchs.CNN as car
 import lib.OneHotEncoding as ohe
-import lib.Regularization as reg
+import lib.Normalization as nor
 
 DEBUG = False
 ONEHOT_OUTPUTDATA =False 
 
-TRAIN_MODEL = False 
-SAVE_MODEL = False
-LOAD_MODEL = True 
+TRAIN_MODEL = True
+SAVE_MODEL = True 
+LOAD_MODEL = False
 PLOTS = True
 
-NUM_TRAIN_EVENTS = 2000
-NUM_VALIDATE_EVENTS = 500
+NUM_TRAIN_EVENTS = 12000
+NUM_VALIDATE_EVENTS = 3000 
 TARGETTYPE = "SINGLERING"  #MUPOS, PICOUNT, or SINGLERING
 
 def open_numpy_allowpickle(thefile):
@@ -54,8 +54,8 @@ if __name__=='__main__':
     
     #INPUT DATA AND TARGET DATA FOR SINGLE RING PREDICTION#
     if TARGETTYPE == "SINGLERING":
-        numpy_infilename = "./data/Processed/nparray_Data/LiliaComb_05072019_pixelmap_input.npy"
-        numpy_outfilename = "./data/Processed/nparray_Data/LiliaComb_05072019_pixelmap_output.npy"
+        numpy_infilename = "./data/Processed/nparray_Data/PMTVolume_06262019_pixelmap_input.npy"
+        numpy_outfilename = "./data/Processed/nparray_Data/PMTVolume_06262019_pixelmap_output.npy"
         weights_filename = "./model_out/ringfinder_weights_0.h5"
         model_filename = "./model_out/ringfinder_model_0.json"
 
@@ -66,14 +66,15 @@ if __name__=='__main__':
     ### Select targets specific to desired analysis ###
     if TARGETTYPE == "MUPOS":
         output_data_muinfo = output_data[0:len(output_data),3:9]
-        output_data_muinfo = reg.RegularizePosDir(output_data_muinfo)
+        output_data_muinfo = nor.NormalizePosDir(output_data_muinfo)
         output_data = output_data_muinfo
         output_width = len(output_data[0])
     elif TARGETTYPE == "PICOUNT":
         output_data_picount = output_data[0:len(output_data),0:3]
         output_width = len(output_data[0])
     elif TARGETTYPE == "SINGLERING":
-        output_data_pitotal = np.sum(output_data, axis=1)
+        output_data_picount = output_data[0:len(output_data),0:3]
+        output_data_pitotal = np.sum(output_data_picount, axis=1)
         possible_multiring_ind = np.where(output_data_pitotal > 0)[0]
         print("INDICES FOR EVENTS WITH POSSIBLE MULTIRING: " + str(possible_multiring_ind))
         output_data_pitotal[possible_multiring_ind] = 1
@@ -160,8 +161,8 @@ if __name__=='__main__':
     truths = y_test
 
     if TARGETTYPE == "MUPOS":
-        predictions = reg.ReverseRegularizePosDir(predictions)
-        truths = reg.ReverseRegularizePosDir(y_test)
+        predictions = Nor.ReverseNormalizePosDir(predictions)
+        truths = nor.ReverseNormalizePosDir(y_test)
         #Show Validation plots
         clp.ShowRecoValidationPlots(predictions,truths)
     if TARGETTYPE == "PICOUNT":
