@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 #for example run
-import AnnieHeatMap as ahm
+#import AnnieHeatMap as ahm
 
 class KernelDensityEstimator(object):
     def __init__(self,dataframe=None):
@@ -31,7 +31,12 @@ class KernelDensityEstimator(object):
         self.bandwidths[datalabel] = bw
 
     def GetOptimalBandwidth(self,datalabel,bandlims,numbands):
-        '''Optimize the bandwidth using leave-one-out cross-validation.
+        '''Optimize the bandwidth using leave-one-out cross-validation.  
+        Essentially, for a single bandwidth, a PDF is made with all 
+        points except one, and the unused point is tested against the model. 
+        This is done many times, and an average error is computed.  This is
+        done for each bandwidth, and the bandwidth with the lowest average
+        error is returned.
         Example follows that at jakevdp.github.io/PythonDataScienceHandbook.
         Args
             datalabel: string
@@ -58,7 +63,8 @@ class KernelDensityEstimator(object):
             print("numbands > 10 with len(data)>500 starts to take a bit")
         grid = sgs.GridSearchCV(skn.KernelDensity(kernel='gaussian'),
                             {'bandwidth': bandwidths},
-                            cv=cv.LeaveOneOut(len(data)))
+                            cv=cv.LeaveOneOut(len(data)),
+                            verbose=1)
         grid.fit(data[:,None])
         thebandwidth = grid.best_params_['bandwidth']
         return thebandwidth
@@ -87,7 +93,13 @@ class KernelDensityEstimator(object):
         logp = kde.score_samples(linspace[:,None])
         return linspace, np.exp(logp)
 
-    def KDEEstimate2D(self,bandwidth,datalabelx,datalabely,xbins=100j,ybins=100j,kern='gaussian'):
+    def KDEEstimate2D(self,bandwidth,datalabelx,datalabely,xbins=100j,ybins=100j,
+            x_range=[0,1], y_range=[0,1],kern='gaussian'):
+        '''
+        Performs a 2D Kernel density estimation using data from the two variables
+        specified in datalabelx and datalabely.  x and y-ranges assume data has
+        been normalized and have the full range from [0,1].
+        '''
         datax = None
         datay = None
         try:
@@ -96,6 +108,14 @@ class KernelDensityEstimator(object):
         except KeyError:
             print("No data found for one of these datalabels.")
             return
+        range_x_ind = np.where((datax>x_range[0]) & (datax<x_range[1]))[0]
+        range_y_ind = np.where((datay>y_range[0]) & (datay<y_range[1]))[0]
+        print("RANGE_X: " + str(range_x_ind))
+        print("RANGE_Y_IND: " + str(range_y_ind))
+        range_indices = np.array(list(set(np.concatenate((range_x_ind,range_y_ind)))))
+        print("RANGE_INDICES: " + str(range_indices))
+        datax = datax[range_indices]
+        datay = datay[range_indices]
         if isinstance(self.df[datalabelx][0],np.ndarray):
             print("WERE IN HERE")
             datax_arr = []
@@ -122,18 +142,10 @@ class KernelDensityEstimator(object):
 
 if __name__=='__main__':
     print("WOO")
-    mymap = ahm.AnnieHeatMapMaker(rootfiles=['PMTReco_05202019.root'])
-    mymap.load_dataframe()
-    miniframe = mymap.MakeYThetaDataFrame()
-    sns.kdeplot(miniframe["Theta"],miniframe["Y"], shade=True)
-    plt.show()
-    myestimator = KernelDensityEstimator(dataframe=miniframe)
-    xx,yy,zz = myestimator.KDEEstimate2D(300,'Y','Theta',xbins=100j,ybins=100j)
-    #print("WOO")
-    #mymap = ahm.AnnieHeatMapMaker(rootfiles=['RPTest_100.root'])
+    #mymap = ahm.AnnieHeatMapMaker(rootfiles=['PMTReco_05202019.root'])
     #mymap.load_dataframe()
-    #mymap.AddHitAnglesToDataFrame()
-    #miniframe = mymap.MakePMTHitChargeDataFrame()
+    #miniframe = mymap.MakeYThetaDataFrame()
+    #sns.kdeplot(miniframe["Theta"],miniframe["Y"], shade=True)
+    #plt.show()
     #myestimator = KernelDensityEstimator(dataframe=miniframe)
-    #xx,yy,zz = myestimator.KDEEstimate2D(8.0,'hitCharges','hitAngles',xbins=1000j,
-    #                                     ybins=1000j)
+    #xx,yy,zz = myestimator.KDEEstimate2D(300,'Y','Theta',xbins=100j,ybins=100j)
