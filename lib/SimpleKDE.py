@@ -128,8 +128,8 @@ class KernelDensityEstimator(object):
             for i in yrange(len(self.df[datalabely])):
                 datay_arr = datay_arr + list(self.df[datalabely][0])
             datay=np.array(datay_arr)
-        xx, yy = np.mgrid[datax.min():datax.max():xbins,
-                datay.min():datay.max():ybins]
+        xx, yy = np.mgrid[x_range[0]:x_range[1]:xbins,
+                y_range[0]:y_range[1]:ybins]
 
         xy_grid = np.vstack([yy.ravel(),xx.ravel()]).T
         xy_dataset = np.vstack([datay,datax]).T

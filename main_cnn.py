@@ -120,6 +120,8 @@ if __name__=='__main__':
     timewindow_width = len(input_data[0][0][0])
     print("TIME WINDOW WIDTH: " + str(timewindow_width))
 
+    FV_only_indices = GetFVEvents(output_data)
+
     print("#### SPLITTING INPUT DATA INTO TRAIN, VALIDATE, AND TEST FRACTIONS ####")
     x_train = input_data[0:NUM_TRAIN_EVENTS-1]
     x_val = input_data[NUM_TRAIN_EVENTS:(NUM_TRAIN_EVENTS+NUM_VALIDATE_EVENTS-1)]
