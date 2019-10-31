@@ -47,9 +47,9 @@ def GetPhiQDistribution(f1data,indices=[]):
     truDirZ = np.array(f1data['trueDirZ'])
     truDirY = np.array(f1data['trueDirY'])
     truDirX = np.array(f1data['trueDirX'])
-    truX = np.array(f1data['trueVtxZ'])
+    truX = np.array(f1data['trueVtxX'])
     truY = np.array(f1data['trueVtxY'])
-    truZ = np.array(f1data['trueVtxX'])
+    truZ = np.array(f1data['trueVtxZ'])
     #Get the phi
     allphis_pmt = []
     allQs_pmt = []
