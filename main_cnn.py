@@ -8,17 +8,17 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import model_from_json
 
 #Custom plotting functions
-import lib.Plots.CNNPlots as clp
+import lib.Plots.CNNPlots as p
 import lib.NNArchs.CNN as car
 import lib.OneHotEncoding as ohe
 import lib.Normalization as nor
 
-DEBUG = False
+DEBUG = True
 ONEHOT_OUTPUTDATA =False 
 
-TRAIN_MODEL = True
-SAVE_MODEL = True 
-LOAD_MODEL = False
+TRAIN_MODEL = False
+SAVE_MODEL = False
+LOAD_MODEL = True
 PLOTS = True
 
 NUM_TRAIN_EVENTS = 12000

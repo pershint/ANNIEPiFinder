@@ -17,13 +17,16 @@ import lib.LikelihoodCalculator as lc
 DEBUG = False
 
 INFILE = "./data/Processed/JSON_Data/PMTVolume_06262019_pixelmap.json"
+
+#FIXME: Implement these
 TRAIN_PDFS = False 
 SAVE_PDFS = False
 LOAD_PDFS = True 
+
 PLOTS = True
 
 #THE REST GO TO THE PERFORMANCE EVALUATION
-NUM_TRAINPDF_EVENTS = 3000
+NUM_TRAINPDF_EVENTS = 2500
 TRAIN_BANDWIDTHS_CHARGEANGLE = False
 TRAIN_BANDWIDTHS_CHARGELENGTH = False
 
@@ -32,9 +35,9 @@ def GetFVEventsOnly(f1data):
     Returns the indices associated with events that originate in 
     the fiducial volume of the ANNIE tank.
     '''
-    truX = np.array(f1data['trueVtxZ'])
+    truX = np.array(f1data['trueVtxX'])
     truY = np.array(f1data['trueVtxY'])
-    truZ = np.array(f1data['trueVtxX'])
+    truZ = np.array(f1data['trueVtxZ'])
     FV_events = np.where((truZ<0) & (abs(truY)<50))[0]
     return FV_events
 
@@ -126,8 +129,9 @@ if __name__ == '__main__':
     #    Muon track length: 0,3.5 Total charge: 0-6000
     #    Or, we could try regularizing using the scipy regularization library
     #Get only the first 2000 events and then show the KDEs after regularization
-    picounts = np.array(data["Pi0Count"] + data["PiPlusCount"] + data["PiMinusCount"])
-    print("TOTAL PI COUNTS: " + str(picounts[0:99]))
+    picounts = np.array(data["Pi0Count"]) + np.array(data["PiPlusCount"]) + \
+    np.array(data["PiMinusCount"])
+    print("LEN OF TOTAL PI COUNTS: " + str(len(picounts)))
     #Set anything with at least one pion to 1
     has_pion = np.where(picounts > 0)[0]
     picounts[has_pion] = 1
@@ -159,6 +163,7 @@ if __name__ == '__main__':
 
     #Neat.  Now, get the indices for events with only a muon and those with a pion
     pi_only = np.where(target_data_train>0)[0]
+    print("# EVENTS WITH PIONS ONLY IN TRAINING DATA: " + str(len(pi_only)))
     mu_only = np.setdiff1d(np.arange(0,len(target_data_train),1),pi_only)
 
     #Form dataframes used to train KDEs FIXME: We need to split data fractionally
@@ -178,13 +183,13 @@ if __name__ == '__main__':
     pi_chargelength_KDE = ske.KernelDensityEstimator(dataframe=pi_chargelength_df)
     
     #Optimize bandwidths for charge-angle KDEs built in each direction.  Take mean
-    mu_bw1 = 0.004
-    mu_bw2 = 0.014
-    pi_bw1 = 0.008
-    pi_bw2 = 0.02
+    mu_bw1 = 0.006
+    mu_bw2 = 0.012
+    pi_bw1 = 0.006
+    pi_bw2 = 0.012
     if (TRAIN_BANDWIDTHS_CHARGEANGLE):
-        bandlims = [0.002,0.02]
-        numbands = 10
+        bandlims = [0.002,0.015]
+        numbands = 15
         mu_bw1 = mu_chargeangle_KDE.GetOptimalBandwidth("charges",bandlims,numbands)
         mu_bw2 = mu_chargeangle_KDE.GetOptimalBandwidth("angles",bandlims,numbands)
         pi_bw1 = pi_chargeangle_KDE.GetOptimalBandwidth("charges",bandlims,numbands)
@@ -194,17 +199,17 @@ if __name__ == '__main__':
     print("USING MEAN BANDWIDTH OF THE OPTIMAL BANDWIDTHS FOUND IN EACH DIMENSION")
 
     #Optimize bandwidths for charge-length KDEs built in each direction.  Take mean
-    mu_bw3 = 0.006
-    mu_bw4 = 0.012
-    pi_bw3 = 0.062
-    pi_bw4 = 0.03
+    mu_bw3 = 0.012
+    mu_bw4 = 0.017
+    pi_bw3 = 0.03
+    pi_bw4 = 0.022
     if (TRAIN_BANDWIDTHS_CHARGELENGTH):
-        bandlims = [0.05,0.09]
+        bandlims = [0.001,0.03]
         numbands = 30
-        #mu_bw3 = mu_chargelength_KDE.GetOptimalBandwidth("tot_charges",bandlims,numbands)
-        #mu_bw4 = mu_chargelength_KDE.GetOptimalBandwidth("lengths",bandlims,numbands)
+        mu_bw3 = mu_chargelength_KDE.GetOptimalBandwidth("tot_charges",bandlims,numbands)
+        mu_bw4 = mu_chargelength_KDE.GetOptimalBandwidth("lengths",bandlims,numbands)
         pi_bw3 = pi_chargelength_KDE.GetOptimalBandwidth("tot_charges",bandlims,numbands)
-        #pi_bw4 = pi_chargelength_KDE.GetOptimalBandwidth("lengths",bandlims,numbands)
+        pi_bw4 = pi_chargelength_KDE.GetOptimalBandwidth("lengths",bandlims,numbands)
         print("OPTIMAL CHARGE-LENGTH MUON KDE BANDWIDTHS USING FULL DATASET: %f,%f "%(mu_bw3,mu_bw4))
         print("OPTIMAL CHARGE-LENGTH PION KDE BANDWIDTHS USING FULL DATASET: %f,%f "%(pi_bw3,pi_bw4))
 
@@ -214,71 +219,124 @@ if __name__ == '__main__':
     mu_bw_cl = (mu_bw3 + mu_bw4)/2.0
     pi_bw_cl = (pi_bw3 + pi_bw4)/2.0
 
+
+
+    #Make plots of each KDE for debugging
+    mx,my,mz = mu_chargeangle_KDE.KDEEstimate2D(mu_bw_ca,"angles","charges",xbins=100j,
+            ybins=100j,x_range=[0,1],y_range=[0,500./max_hitcharge],kern='gaussian')
+    mx = mx*max_angle
+    my = my*max_hitcharge
+    mz=mz/np.max(mz)
+
+    px,py,pz = pi_chargeangle_KDE.KDEEstimate2D(pi_bw_ca,"angles","charges",xbins=100j,
+            ybins=100j,x_range=[0,1],y_range=[0,500./max_hitcharge],kern='gaussian')
+    px = px*max_angle
+    py = py*max_hitcharge
+    pz=pz/np.max(pz)
+
+    mx_cl,my_cl,mz_cl = mu_chargelength_KDE.KDEEstimate2D(mu_bw_cl,"lengths","tot_charges",xbins=100j,
+            ybins=100j,x_range=[0,1],y_range=[0,6000./max_totcharge],kern='gaussian')
+    mx_cl = mx_cl*max_tracklength
+    my_cl = my_cl*max_totcharge
+    mz_cl=mz_cl/np.max(mz_cl)
+
+    px_cl,py_cl,pz_cl = pi_chargelength_KDE.KDEEstimate2D(pi_bw_cl,"lengths","tot_charges",xbins=100j,
+            ybins=100j,x_range=[0,1],y_range=[0,6000./max_totcharge],kern='gaussian')
+    px_cl = px_cl*max_tracklength
+    py_cl = py_cl*max_totcharge
+    pz_cl=pz_cl/np.max(pz_cl)
+
     if PLOTS:
-        #Make plots of each KDE for debugging
-        mx,my,mz = mu_chargeangle_KDE.KDEEstimate2D(mu_bw_ca,"angles","charges",xbins=100j,
-                ybins=100j,x_range=[0,1],y_range=[0,500./max_hitcharge],kern='gaussian')
-        mx = mx*max_angle
-        my = my*max_hitcharge
-        mz=mz/np.max(mz)
+        #Plot Q vs. Phi distributions 
         sns.set_style("whitegrid")
         sns.axes_style("darkgrid")
         xkcd_colors =  [ 'slate blue', 'green', 'grass','pink']
         sns.set_context("poster")
         sns.set_palette(sns.xkcd_palette(xkcd_colors))
+        mu_chargeangle_df["angles"] = mu_chargeangle_df["angles"]*max_angle 
+        mu_chargeangle_df["charges"] = mu_chargeangle_df["charges"]*max_hitcharge
+        g = sns.jointplot("angles","charges",data=mu_chargeangle_df,kind="hex",
+                joint_kws=dict(gridsize=80),
+                stat_func=None).set_axis_labels("PMT Phi from vertex dir. (deg)","PMT Charge (pe)")
+        plt.subplots_adjust(left=0.2,right=0.8,
+                top=0.85,bottom=0.2)
+        cbar_ax = g.fig.add_axes([0.84,0.2,0.05,0.62])
+        plt.colorbar(cax=cbar_ax)
+        g.fig.suptitle("Distribution of PMT charges relative to muon direction \n" + \
+                "Muon stops in MRD, muon only")
+        plt.show()
+
         cbar = plt.contourf(mx,my,mz,40,cmap='inferno')
         plt.colorbar()
+        plt.ylabel("Hit charge (pe)")
+        plt.xlabel("Hit angle relative to muon direction (deg)")
         plt.title("Hit charge vs. hit angle KDE for muon only, normalized to max of 1")
         plt.show()
-    
-        px,py,pz = pi_chargeangle_KDE.KDEEstimate2D(pi_bw_ca,"angles","charges",xbins=100j,
-                ybins=100j,x_range=[0,1],y_range=[0,500./max_hitcharge],kern='gaussian')
-        px = px*max_angle
-        py = py*max_hitcharge
-        pz=pz/np.max(pz)
-        sns.set_style("whitegrid")
-        sns.axes_style("darkgrid")
-        xkcd_colors =  [ 'slate blue', 'green', 'grass','pink']
-        sns.set_context("poster")
-        sns.set_palette(sns.xkcd_palette(xkcd_colors))
+
+        pi_chargeangle_df["angles"] = pi_chargeangle_df["angles"]*max_angle 
+        pi_chargeangle_df["charges"] = pi_chargeangle_df["charges"]*max_hitcharge
+        g = sns.jointplot("angles","charges",data=pi_chargeangle_df,kind="hex",
+                joint_kws=dict(gridsize=80),
+                stat_func=None).set_axis_labels("PMT Phi from vertex dir. (deg)","PMT Charge (pe)")
+        plt.subplots_adjust(left=0.2,right=0.8,
+                top=0.85,bottom=0.2)
+        cbar_ax = g.fig.add_axes([0.84,0.2,0.05,0.62])
+        plt.colorbar(cax=cbar_ax)
+        g.fig.suptitle("Distribution of PMT charges relative to muon direction \n" + \
+                "Muon stops in MRD, muon + pions")
+        plt.show()
+
         cbar = plt.contourf(px,py,pz,40,cmap='inferno')
         plt.colorbar()
+        plt.ylabel("Hit charge (pe)")
+        plt.xlabel("Hit angle relative to muon direction (deg)")
         plt.title("Hit charge vs. hit angle KDE for muon + pions, normalized to max of 1")
         plt.show()
-    
-        mx_cl,my_cl,mz_cl = mu_chargelength_KDE.KDEEstimate2D(mu_bw_cl,"lengths","tot_charges",xbins=100j,
-                ybins=100j,x_range=[0,1],y_range=[0,6000./max_totcharge],kern='gaussian')
-        mx_cl = mx_cl*max_tracklength
-        my_cl = my_cl*max_totcharge
-        mz_cl=mz_cl/np.max(mz_cl)
-        sns.set_style("whitegrid")
-        sns.axes_style("darkgrid")
-        xkcd_colors =  [ 'slate blue', 'green', 'grass','pink']
-        sns.set_context("poster")
-        sns.set_palette(sns.xkcd_palette(xkcd_colors))
+  
+        mu_chargelength_df["lengths"] = mu_chargelength_df["lengths"]*max_tracklength
+        mu_chargelength_df["tot_charges"] = mu_chargelength_df["tot_charges"]*max_totcharge
+        g = sns.jointplot("lengths","tot_charges",data=mu_chargelength_df,kind="hex",
+                joint_kws=dict(gridsize=80),
+                stat_func=None).set_axis_labels("Muon track length in tank (m)","Total PMT Charge (pe)")
+        plt.subplots_adjust(left=0.2,right=0.8,
+                top=0.85,bottom=0.2)
+        cbar_ax = g.fig.add_axes([0.84,0.2,0.05,0.62])
+        plt.colorbar(cax=cbar_ax)
+        g.fig.suptitle("Total PMT charge vs. true muon track length \n" + \
+                "Muon stops in MRD, muon only")
+        plt.show()
+
+
         cbar = plt.contourf(mx_cl,my_cl,mz_cl,40,cmap='inferno')
         plt.colorbar()
+        plt.ylabel("Total charge (pe)")
+        plt.xlabel("Muon track length (m)")
         plt.title("Total charge vs. Track length KDE for muon only, normalized to max of 1")
         plt.show()
-    
-        px_cl,py_cl,pz_cl = pi_chargelength_KDE.KDEEstimate2D(pi_bw_cl,"lengths","tot_charges",xbins=100j,
-                ybins=100j,x_range=[0,1],y_range=[0,6000./max_totcharge],kern='gaussian')
-        px_cl = px_cl*max_tracklength
-        py_cl = py_cl*max_totcharge
-        pz_cl=pz_cl/np.max(pz_cl)
-        sns.set_style("whitegrid")
-        sns.axes_style("darkgrid")
-        xkcd_colors =  [ 'slate blue', 'green', 'grass','pink']
-        sns.set_context("poster")
-        sns.set_palette(sns.xkcd_palette(xkcd_colors))
+
+        pi_chargelength_df["lengths"] = pi_chargelength_df["lengths"]*max_tracklength
+        pi_chargelength_df["tot_charges"] = pi_chargelength_df["tot_charges"]*max_totcharge
+        g = sns.jointplot("lengths","tot_charges",data=pi_chargelength_df,kind="hex",
+                joint_kws=dict(gridsize=80),
+                stat_func=None).set_axis_labels("Muon track length in tank (m)","Total PMT Charge (pe)")
+        plt.subplots_adjust(left=0.2,right=0.8,
+                top=0.85,bottom=0.2)
+        cbar_ax = g.fig.add_axes([0.84,0.2,0.05,0.62])
+        plt.colorbar(cax=cbar_ax)
+        g.fig.suptitle("Total PMT charge vs. true muon track length \n" + \
+                "Muon stops in MRD, muon + pions")
+        plt.show()
+
         cbar = plt.contourf(px_cl,py_cl,pz_cl,40,cmap='inferno')
         plt.colorbar()
+        plt.ylabel("Total charge (pe)")
+        plt.xlabel("Muon track length (m)")
         plt.title("Total charge vs. Track length KDE for muon + pions, normalized to max of 1")
         plt.show()
 
     #Now, we used KDE to estimate the charge-angle and charge-length PDFs.  From here,
     #we can calculate the likelihood that an event is a muon only or has muons + pions
-    LikelihoodFunc = lc.LikelihoodFunction()
+    LikelihoodFunc = lc.LikelihoodCalculator()
     LikelihoodFunc.Add2DPDF("Muon_ChargeAngle","S","pmt_phis","pmt_charges",mx,my,mz,weight=0.1)
     LikelihoodFunc.Add2DPDF("MuPi_ChargeAngle","B","pmt_phis","pmt_charges",px,py,pz,weight=0.1)
     LikelihoodFunc.Add2DPDF("Muon_TotChargeLength","S","track_length",
@@ -303,19 +361,40 @@ if __name__ == '__main__':
                 linewidth=4,label='Muon + Pions',histtype="step")
     plt.hist(mu_likelihoods, bins=30, 
                 linewidth=4,label='Muon only',histtype="step")
-    leg = ax.legend(loc=4,fontsize=24)
+    leg = ax.legend(loc=2,fontsize=24)
     leg.set_frame_on(True)
     leg.draw_frame(True)
-    plt.title("OH SHIIIIIT")
+    plt.title("Likelihood ratio for Muon and Muon + Pion test data")
     plt.show()
-    
-    lcut = 0.3
-    print("CUT ON PARAMETER AT %f"%(lcut))
-    mu_pass = np.where(mu_likelihoods>lcut)[0]
-    pi_pass = np.where(pi_likelihoods>lcut)[0]
+   
+    lcut_optimal, lcuts_checked, efficiencies, purities = LikelihoodFunc.OptimizeCut(mu_likelihoods,pi_likelihoods)
+
+    print("OPTIMAL CUT ON PARAMETER AT %f"%(lcut_optimal))
+    mu_pass = np.where(mu_likelihoods>lcut_optimal)[0]
+    pi_pass = np.where(pi_likelihoods>lcut_optimal)[0]
     mu_acceptance = float(len(mu_pass))/len(mu_likelihoods)
     mu_acc_unc = np.sqrt(len(mu_pass))/len(mu_likelihoods)
     pi_acceptance = float(len(pi_pass))/len(pi_likelihoods)
     pi_acc_unc = np.sqrt(len(pi_pass))/len(pi_likelihoods)
     print("MUON ONLY ACCEPTANCE: %f PM %f"%(mu_acceptance,mu_acc_unc))
     print("MUON + PION ACCEPTANCE: %f PM %f"%(pi_acceptance,pi_acc_unc))
+
+    sns.set_style("whitegrid")
+    sns.axes_style("darkgrid")
+    xkcd_colors = ['black', 'blue', 'purple']
+    sns.set_palette(sns.xkcd_palette(xkcd_colors))
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
+    plt.xlabel('Likelihood parameter cut')
+    plt.plot(np.array(lcuts_checked),np.array(efficiencies), 
+                linewidth=4,label='Signal Efficiency = $S_{acc}/S_{tot}$')
+    plt.plot(np.array(lcuts_checked),np.array(purities), 
+                linewidth=4,label='Signal Purity = $S_{acc}/(S_{acc}+B_{acc})$')
+    plt.plot(np.array(lcuts_checked),np.array(purities)*np.array(efficiencies), 
+                linewidth=4,label='Purity*Efficiency')
+    leg = ax.legend(loc=3,fontsize=24)
+    leg.set_frame_on(True)
+    leg.draw_frame(True)
+    plt.title("Efficiency and Purity of muons for varying classifier cut")
+    plt.show()
+   

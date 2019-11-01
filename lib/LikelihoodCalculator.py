@@ -1,7 +1,9 @@
 import numpy as np
 from scipy import interpolate
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-class LikelihoodFunction(object):
+class LikelihoodCalculator(object):
     def __init__(self):
         self.PDFs = {}
 
@@ -85,3 +87,38 @@ class LikelihoodFunction(object):
                         B_likelihood[k]+=likelihood*PDF_weight
         Signal_likelihood = (S_likelihood)/(S_likelihood + B_likelihood)
         return Signal_likelihood
+
+    def OptimizeCut(self,S_likelihoods,B_likelihoods,l_range=[0,1],l_interval=0.01):
+        l_cuts = np.arange(l_range[0],l_range[1],l_interval)
+        efficiencies = []
+        purities = []
+        lcuts_checked = []
+        max_significance = 0
+        max_sig_cut = None
+        for l_cut in l_cuts:
+            S_pass = float(len(np.where(S_likelihoods>l_cut)[0]))
+            B_pass = float(len(np.where(B_likelihoods>l_cut)[0]))
+            N0 = S_pass + B_pass
+            if (N0 == 0):
+                print("NO SIGNAL OR BACKGROUND AT CUT %f.  CONTINUING"%(l_cut))
+                continue
+            lcuts_checked.append(l_cut)
+            eff = S_pass/len(S_likelihoods)
+            purity = S_pass/(S_pass + B_pass)
+            efficiencies.append(eff)
+            purities.append(purity)
+
+            #significance = eff * (purity**2)
+            #significance = np.sqrt(2*N0*np.log(1+(S_pass/B_pass))-2*S_pass) 
+            significance = S_pass / np.sqrt(N0)
+            print("SIGNIFICANCE AT CUT %f IS %f "%(l_cut,significance))
+            if max_sig_cut is None:
+                max_sig_cut = l_cut
+                max_significance = significance
+            elif significance > max_significance:
+                max_sig_cut = l_cut
+                max_significance = significance
+        print("USING EFFICIENCY*PURITY^2, MAX SIGNIFICANCE HAPPENS AT CUT %f"%(max_sig_cut))
+        return max_sig_cut, lcuts_checked, efficiencies, purities
+
+
