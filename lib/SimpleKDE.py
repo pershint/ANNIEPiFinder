@@ -69,27 +69,24 @@ class KernelDensityEstimator(object):
         thebandwidth = grid.best_params_['bandwidth']
         return thebandwidth
 
-    def KDEEstimate1D(self,datalabel,x_range=[0,1],bins=100,kern='gaussian'):
+    def KDEEstimate1D(self,bandwidth,datalabel,x_range=[0,1],bins=100,kern='gaussian'):
         '''
         Performs a 1D Kernel density estimation using data from the two variables
         specified in datalabelx and datalabely.  x-ranges assume data has
         been normalized and have the full range from [0,1].
         '''
-        bandwidth = None
         data = None
         try:
-            bandwidth = self.bandwidths[datalabel]
             data = self.df[datalabel]
         except KeyError:
-            print("No bandwidth or data found for this datalabel.")
+            print("No data found for this datalabel.")
             return
-        print(data)
         if isinstance(self.df[datalabel][0],np.ndarray):
-            print("WERE IN HERE")
-            data_arr = []
-            for i in range(len(self.df[datalabel])):
-                data_arr = data_arr + list(self.df[datalabel][0])
-            data=np.array(data_arr)
+            data = np.concatenate(self.df[datalabel])
+            #data_arr = []
+            #for i in range(len(self.df[datalabel])):
+            #    data_arr = data_arr + list(self.df[datalabel][0])
+            #data=np.array(data_arr)
         linspace = np.linspace(x_range[0],x_range[1], (x_range[1]-x_range[0])*bins)
         kde = skn.KernelDensity(bandwidth=bandwidth, kernel=kern)
         kde.fit(self.df[datalabel][:,None])

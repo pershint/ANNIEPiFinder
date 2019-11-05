@@ -39,7 +39,7 @@ class LikelihoodCalculator(object):
             print("PDF name already exists! Please pick a new name or remove the present PDF.")
             return
         self.PDFs[PDF_name] = {}
-        self.PDFs[PDF_name]['x_label'] = xlabel
+        self.PDFs[PDF_name]['x_label'] = label
         self.PDFs[PDF_name]['PDF_data'] = [x,y]
         self.PDFs[PDF_name]["S_or_B"] = datatype
         self.PDFs[PDF_name]["weight"] = weight
@@ -112,7 +112,7 @@ class LikelihoodCalculator(object):
         PDF_weight = PDF_info['weight']
         f = interpolate.interp1d(PDF_data[0],PDF_data[1],kind=PDF_interpolation)
         x_data = data[PDF_info['x_label']]
-        if type(x_data[0]) == np.ndarray and type(y_data[0]) == np.ndarray:
+        if type(x_data[0]) == np.ndarray:
             #Loop through data entries and for each entry, calculate this
             #PDF's contribution to the S or B likelihood
             for j,entry in enumerate(x_data):

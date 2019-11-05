@@ -28,7 +28,7 @@ PLOTS = True
 
 #THE REST GO TO THE PERFORMANCE EVALUATION
 NUM_TRAINPDF_EVENTS = 2500
-NUM_DIMENSIONS = 2
+NUM_DIMENSIONS = 1
 TRAIN_BANDWIDTHS_CHARGEANGLE = False
 TRAIN_BANDWIDTHS_CHARGELENGTH = False
 
@@ -218,44 +218,44 @@ if __name__ == '__main__':
 
         #Construct 1D PDFs using hit angle and hit charge for signal & background
         mx_angle,my_angle = mu_chargeangle_KDE.KDEEstimate1D(mu_bandwidths["angles"],
-                x_range=[0,1],bins=100,kern='gaussian')
-        mx_angle = mx*max_angle
+                "angles",x_range=[0,1],bins=100,kern='gaussian')
+        mx_angle = mx_angle*max_angle
         my_angle = my_angle/np.max(my_angle)
 
-        mx_charge,my_charge = mu_chargecharge_KDE.KDEEstimate1D(mu_bandwidths["charges"],
-                x_range=[0,1],bins=100,kern='gaussian')
-        mx_charge = mx*max_charge
+        mx_charge,my_charge = mu_chargeangle_KDE.KDEEstimate1D(mu_bandwidths["charges"],
+                "charges",x_range=[0,1],bins=100,kern='gaussian')
+        mx_charge = mx_charge*max_hitcharge
         my_charge = my_charge/np.max(my_charge)
 
         px_angle,py_angle = pi_chargeangle_KDE.KDEEstimate1D(pi_bandwidths["angles"],
-                x_range=[0,1],bins=100,kern='gaussian')
-        px_angle = px*max_angle
+                "charges",x_range=[0,1],bins=100,kern='gaussian')
+        px_angle = px_angle*max_angle
         py_angle = py_angle/np.max(py_angle)
 
-        px_charge,py_charge = pi_chargecharge_KDE.KDEEstimate1D(pi_bandwidths["charges"],
-                x_range=[0,1],bins=100,kern='gaussian')
-        px_charge = px*max_charge
+        px_charge,py_charge = pi_chargeangle_KDE.KDEEstimate1D(pi_bandwidths["charges"],
+                "charges",x_range=[0,1],bins=100,kern='gaussian')
+        px_charge = px_charge*max_hitcharge
         py_charge = py_charge/np.max(py_charge)
 
         #Construct 1D PDFs using track length and total charge for signal & background
         mx_length,my_length = mu_chargelength_KDE.KDEEstimate1D(mu_bandwidths["lengths"],
-                x_range=[0,1],bins=100,kern='gaussian')
-        mx_length = mx*max_tracklength
+                "lengths",x_range=[0,1],bins=100,kern='gaussian')
+        mx_length = mx_length*max_tracklength
         my_length = my_length/np.max(my_length)
 
         mx_totcharge,my_totcharge = mu_chargelength_KDE.KDEEstimate1D(mu_bandwidths["tot_charges"],
-                x_range=[0,1],bins=100,kern='gaussian')
-        mx_totcharge = mx*max_totcharge
+                "tot_charges",x_range=[0,1],bins=100,kern='gaussian')
+        mx_totcharge = mx_totcharge*max_totcharge
         my_totcharge = my_totcharge/np.max(my_totcharge)
 
         px_length,py_length = pi_chargelength_KDE.KDEEstimate1D(pi_bandwidths["lengths"],
-                x_range=[0,1],bins=100,kern='gaussian')
-        px_length = px*max_tracklength
+                "lengths",x_range=[0,1],bins=100,kern='gaussian')
+        px_length = px_length*max_tracklength
         py_length = py_length/np.max(py_length)
 
         px_totcharge,py_totcharge = pi_chargelength_KDE.KDEEstimate1D(pi_bandwidths["tot_charges"],
-                x_range=[0,1],bins=100,kern='gaussian')
-        px_totcharge = px*max_totcharge
+                "tot_charges",x_range=[0,1],bins=100,kern='gaussian')
+        px_totcharge = px_totcharge*max_totcharge
         py_totcharge = py_totcharge/np.max(py_totcharge)
 
     if NUM_DIMENSIONS == 2:
@@ -343,12 +343,12 @@ if __name__ == '__main__':
     #Load developed PDFs for use in the likelihood function
     if NUM_DIMENSIONS == 1:
         LikelihoodFunc.Add1DPDF("Muon_HitCharge","S","pmt_charges",mx_charge,my_charge,weight=1.0)
-        LikelihoodFunc.Add1DPDF("Muon_HitAngle","S","pmt_angles",mx_angle,my_angle,weight=1.0)
-        LikelihoodFunc.Add1DPDF("Muon_TotCharge","S","pmt_total_charges",mx_totcharge,my_totcharge,weight=1.0)
+        LikelihoodFunc.Add1DPDF("Muon_HitAngle","S","pmt_phis",mx_angle,my_angle,weight=1.0)
+        LikelihoodFunc.Add1DPDF("Muon_TotCharge","S","pmt_total_charge",mx_totcharge,my_totcharge,weight=1.0)
         LikelihoodFunc.Add1DPDF("Muon_TrackLength","S","track_length",mx_length,my_length,weight=1.0)
         LikelihoodFunc.Add1DPDF("MuPi_HitCharge","B","pmt_charges",px_charge,py_charge,weight=1.0)
-        LikelihoodFunc.Add1DPDF("MuPi_HitAngle","B","pmt_angles",px_angle,py_angle,weight=1.0)
-        LikelihoodFunc.Add1DPDF("MuPi_TotCharge","B","pmt_total_charges",px_totcharge,py_totcharge,weight=1.0)
+        LikelihoodFunc.Add1DPDF("MuPi_HitAngle","B","pmt_phis",px_angle,py_angle,weight=1.0)
+        LikelihoodFunc.Add1DPDF("MuPi_TotCharge","B","pmt_total_charge",px_totcharge,py_totcharge,weight=1.0)
         LikelihoodFunc.Add1DPDF("MuPi_TrackLength","B","track_length",px_length,py_length,weight=1.0)
 
     if NUM_DIMENSIONS == 2:
